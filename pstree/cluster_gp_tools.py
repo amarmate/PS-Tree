@@ -1,7 +1,7 @@
 import builtins
 import operator
 import random
-from collections import Callable
+from collections.abc import Callable
 from copy import deepcopy
 from math import isclose
 

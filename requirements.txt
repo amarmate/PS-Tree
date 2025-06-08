@@ -1,4 +1,4 @@
-numpy>=1.19.5
+# numpy>=1.19.5
 pandas>=1.2.4
 gplearn>=0.4.1
 scipy>=1.6.2
@@ -7,3 +7,9 @@ bluepyopt>=1.10.36
 glmnet>=2.2.1
 icecream>=2.1.1
 scikit-learn>=0.24.2
+cpython
+sympy 
+
+
+# pip install numpy==1.24
+# pip install --upgrade pip setuptools wheel
