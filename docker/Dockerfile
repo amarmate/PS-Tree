@@ -1,21 +1,37 @@
-# Dockerfile
-FROM python:3.10-slim
-
-# Erstelle einen Arbeitsordner
+FROM ubuntu:22.04
+ENV DEBIAN_FRONTEND=noninteractive
 WORKDIR /app
 
-# Installiere virtualenv
-RUN apt-get update && apt-get install -y git build-essential gfortran tmux \
-    && rm -rf /var/lib/apt/lists/*
+RUN apt update \
+ && apt install -y software-properties-common \
+                   build-essential gfortran git tmux \
+                   pkg-config libopenblas-dev liblapack-dev \
+ && add-apt-repository ppa:deadsnakes/ppa \
+ && apt update \
+ && apt install -y python3.10 python3.10-venv python3.10-dev \
+ && rm -rf /var/lib/apt/lists/*
+
+# 1) Venv anlegen und Pip upgraden
+RUN python3.10 -m venv venv \
+ && . venv/bin/activate \
+ && pip install --upgrade pip
+
+# 2) setuptools downgraden, damit glmnet-Setup läuft
+RUN . venv/bin/activate \
+ && pip install "setuptools<60.0.0" wheel
+
+# 3) Repo klonen und Dependencies installieren
+SHELL ["/bin/bash", "-lc"]
+RUN . venv/bin/activate \
+ && git clone --depth 1 https://github.com/amarmate/PS-Tree.git /app/PS-Tree \
+ && cd PS-Tree \
+ && pip install numpy \
+ && pip install -r requirements.txt
+
+RUN pip install cpython pyximport sympy 
+
+CMD ["/bin/bash", "-lc", "source venv/bin/activate && bash"]
 
 
-RUN git clone https://github.com/amarmate/PS-Tree.git
-WORKDIR /app/PS-Tree
-RUN pip install --upgrade pip
-RUN pip install numpy==1.22.1
-RUN pip install -r requirements_dev.txt
-RUN pip install -r requirements.txt
+#  && git clone --depth 1 https://github.com/amarmate/PS-Tree.git /app/PS-Tree \
 
-
-# Aktiviere die virtuelle Umgebung beim Containerstart
-CMD ["/bin/bash"]
