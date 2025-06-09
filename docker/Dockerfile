@@ -28,7 +28,8 @@ RUN . venv/bin/activate \
  && pip install numpy \
  && pip install -r requirements.txt
 
-RUN pip install cpython pyximport sympy 
+RUN . venv/bin/activate \ 
+ && pip install pyximport sympy cython 
 
 CMD ["/bin/bash", "-lc", "source venv/bin/activate && bash"]
 
