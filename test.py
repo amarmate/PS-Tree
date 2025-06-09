@@ -1,32 +1,49 @@
-from sklearn.datasets import load_diabetes
 from sklearn.model_selection import train_test_split
 
 from pstree.cluster_gp_sklearn import PSTreeRegressor, GPRegressor
+from pstree.datasets.data_loader import *
+from pstree.datasets.synthetic_datasets import *
 from sklearn.tree import DecisionTreeRegressor
-from sklearn.metrics import r2_score
+from sklearn.metrics import r2_score, root_mean_squared_error as rmse
+
+from matplotlib import pyplot as plt
 
 if __name__ == "__main__":
-    X,y = load_diabetes(return_X_y=True)
+    X,y = load_diabetes()
+    # X, y, _, _ = load_synthetic1()
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=0)
 
     r = PSTreeRegressor(regr_class=GPRegressor, 
                         tree_class=DecisionTreeRegressor,
                         height_limit=6, 
-                        n_pop=25, 
-                        n_gen=50,
+                        n_pop=10,  # 25
+                        n_gen=20,  # 50 
                         basic_primitive=True,
                         size_objective=True,
-                        max_leaf_nodes=4,
-                        constant_range=2,
+                        max_leaf_nodes=4,  # 4 
+                        constant_range=2,  # 2 
                         random_seed=0, 
                         random_state=0,
-                        normalize=True,
+                        normalize=False,
+                        verbose=True,
+                        adaptive_tree=True,
     )
 
     r.fit(X_train, y_train)
     print(r2_score(y_test, r.predict(X_test)))
-    print(r.model())
+    print(rmse(y_test, r.predict(X_test)))
+    
+    plt.figure(figsize=(10, 6))
+    plt.scatter(y_test, r.predict(X_test), alpha=0.5)
+    plt.plot([y_test.min(), y_test.max()], [y_test.min(), y_test.max()], 'k--', lw=2)
+    plt.xlabel('True Values')
+    plt.ylabel('Predictions')
+    plt.title('PSTreeRegressor Predictions vs True Values')
+    plt.savefig('pstree_regressor_predictions.png')
+        
+    # print(r.model())
 
 
 

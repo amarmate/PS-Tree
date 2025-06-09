@@ -31,6 +31,16 @@ from sklearn.svm import LinearSVR
 from sklearn.tree import DecisionTreeRegressor, DecisionTreeClassifier, _tree
 from sympy import parse_expr, Piecewise, srepr
 
+
+from sklearn.metrics import mean_squared_error, r2_score
+import warnings 
+from scipy.stats import NearConstantInputWarning, ConstantInputWarning
+warnings.filterwarnings("ignore", category=NearConstantInputWarning)
+warnings.filterwarnings("ignore", category=ConstantInputWarning)
+from sklearn.tree import export_text
+
+
+
 from pstree import cluster_gp_tools
 from pstree.cluster_gp_tools import (
     add_pset_function,
@@ -271,6 +281,7 @@ class GPRegressor(NormalizationRegressor):
         afp=False,
         complexity_measure=False,
         parsimonious_variable=False,
+        decision_tree=None,
         **params,
     ):
         """
@@ -344,6 +355,7 @@ class GPRegressor(NormalizationRegressor):
         self.size_objective = size_objective
         self.tree_shrinkage = tree_shrinkage
         self.correlation_elimination = correlation_elimination
+        self.decision_tree = decision_tree
 
     def get_predicted_list(self, pop):
         predicted_list = []
@@ -355,13 +367,23 @@ class GPRegressor(NormalizationRegressor):
         compiled_individuals = [
             self.toolbox.compile(individual) for individual in individuals
         ]
+        
+        # after the individuals have been generated, we need to add them to the features 
         all_features = self.feature_construction(compiled_individuals, self.train_data)
+        
+        # now lasso is fitted for each partition, which will generate m different regressions
+        # this means that for each individual we will have m feature importances (fitnesses)
         fitness, pipelines, score = self.model_construction(all_features, final_model)
-
-        if self.verbose:
-            print("score", score / len(self.Y))
-
+        
+        # print(pipelines[0]['Ridge'].coef_)
+        # print(fitness[0])
+        
+        # if self.verbose:
+        #     print("score", score / len(self.Y))
         # correlation = np.corrcoef(np.array([p['Ridge'].coef_ for p in pipelines]))
+        
+        # after the lasso regressions are fitted, we need to see if there is a better way 
+        # to partition the data. Thus, we run adaptive tree generation 
         self.adaptive_tree_generation(
             self.feature_construction(
                 compiled_individuals, self.train_data, self.original_features
@@ -369,6 +391,8 @@ class GPRegressor(NormalizationRegressor):
             pipelines,
         )
 
+        # If validation_selection is enabled and the current score is better than the best_cv
+        # we update the best_cv and the pipelines
         if (
             (self.validation_selection and score < self.best_cv)
             or (not self.validation_selection)
@@ -385,12 +409,19 @@ class GPRegressor(NormalizationRegressor):
                 self.best_label = self.category
                 self.best_leaf_node_num = self.super_object.max_leaf_nodes
             # assert len(pipelines) == category_num + 1, f"{category_num + 1},{len(pipelines)}"
-
+        
         fitness = np.array(fitness)
         assert len(fitness.shape) == 2, fitness.shape
         fitness_dimension = len(pipelines)
+        sizes = [1 for _ in range(self.train_data.shape[1])]
 
+        # now the fitness of the individuals is updated 
+        # we have double the size of the population here in individuals
+        # because we are keeping the population from the last generation 
         for i, ind in enumerate(individuals):
+            size = len(ind) + str(ind).count('analytical_quocient') * 4
+            sizes.append(size)
+
             target_dimension = fitness_dimension
             fitness_values = tuple(np.abs(fitness[:, i]))
             if self.size_objective:
@@ -426,17 +457,44 @@ class GPRegressor(NormalizationRegressor):
             ind.fitness.values = fitness_values
             assert len(ind.fitness.values) == target_dimension
             assert len(ind.fitness.wvalues) == target_dimension
+
+        self.sizes = sizes 
+        nodes_count = self.get_nodes_count()
+        
+                         
         return tuple(fitness)
+    
+    def get_nodes_count(self,): 
+        dt = self.decision_tree
+        sizes = self.sizes 
+        
+        # Extract which features are used for splitting and get their sizes 
+        
+        # Sum the nodes used for condition feature > 3 (= 2 + feature size) 
+        
+        # Check which coefficients are 0 in the lasso regression 
+        # for each m [(coeff > 0) * size] to get the total size of each regression
+                
+        # Multiply the sizes of regressions by the amount of times 
+        # each one is used (their sum should be m), e.g.: [1, 2, 0, 1] (shape = sum)
+        # then sum to get the total nodes used in terminals
+        
+        # Add the features for splitting + nodes and the terminals' sizes 
+        
+        
 
     def model_construction(self, all_features, final_model):
+        # all_features includes both the X and the gp individuals 
         fitness = []
         pipelines = []
         score = 0
+                
+        # In case self.category.shape == 1, it means we are in the first iteration with category = [0,1,1,0,2,2,2,1,2,...]
         if len(self.category.shape) == 1:
             category_num = np.max(self.category)
         else:
             category_num = self.category.shape[1] - 1
-
+            
         def dummy_regressor_construction(x, y):
             coef = np.zeros(x.shape[1])
             constant = np.mean(y)
@@ -468,18 +526,19 @@ class GPRegressor(NormalizationRegressor):
                     return False
 
             if len(self.category.shape) == 1:
+                # initial hard decision tree 
                 category = self.category == i
                 Y_true = self.Y[category]
-                features = all_features[category]
-
+                features = all_features[category]            
+                
                 if check_rule(np.sum(category)):
                     dummy_regressor_construction(features, Y_true)
                     continue
             else:
-                # soft decision tree
+                # soft decision tree - never happens almost
                 Y_true = self.Y
                 features = all_features
-
+                
                 if check_rule(np.count_nonzero(self.category[:, i])):
                     dummy_regressor_construction(features, Y_true)
                     continue
@@ -591,6 +650,7 @@ class GPRegressor(NormalizationRegressor):
                 feature_importances = np.abs(pipe["Ridge"].coef_)
             fitness.append(feature_importances)
             pipelines.append(pipe)
+                            
         return fitness, pipelines, score
 
     def feature_construction(self, compiled_individuals, x, original_features=False):
@@ -610,6 +670,8 @@ class GPRegressor(NormalizationRegressor):
 
     def adaptive_tree_generation(self, all_features, pipelines):
         # adaptively generate new partition scheme
+        # all_features included here are the X dataset and the features
+        # the features are 2 * pop_size, as we are using both the new and the old populations
         if self.adaptive_tree:
             if self.soft_label:
                 original_all_features = all_features
@@ -627,7 +689,7 @@ class GPRegressor(NormalizationRegressor):
                     ),
                     axis=0,
                 )
-                sample = np.random.rand(len(pipelines), all_features.shape[0])
+                sample = np.random.rand(len(pipelines), all_features.shape[0])                
                 matrix = prob > sample
                 features = np.concatenate([all_features[s] for s in matrix], axis=0)
                 label = np.concatenate(
@@ -644,6 +706,8 @@ class GPRegressor(NormalizationRegressor):
                 best_fitness = np.full(len(self.Y), np.inf)
                 for i, p in enumerate(pipelines):
                     # np.array([(p.predict(all_features[:, self.train_data.shape[1]:]) - self.Y) ** 2 for p in pipelines])
+                    
+                    # we need to use the pipeline for the predictions 
                     if self.original_features:
                         loss = (
                             p.predict(all_features[:, self.train_data.shape[1] :])
@@ -652,8 +716,17 @@ class GPRegressor(NormalizationRegressor):
                     else:
                         loss = (p.predict(all_features) - self.Y) ** 2
                     label[loss < best_fitness] = i
+                    
                     best_fitness[loss < best_fitness] = loss[loss < best_fitness]
-                self.category, decision_tree = self.space_partition_fun(
+                    
+                # Count the labels
+                # print([np.sum(label == i) for i in range(len(pipelines))])
+
+                # we need to keep the categories because the splits wont be perfect 
+                # and as such some labels will be missclassified. the decision tree 
+                # isnt important. Now I am keeping the decision tree to calculate the
+                # total size of the mode.
+                self.category, self.decision_tree = self.space_partition_fun(
                     all_features, label
                 )
 
@@ -682,10 +755,14 @@ class GPRegressor(NormalizationRegressor):
         verbose = self.verbose
         if verbose:
             self.stats = tools.Statistics(key=lambda ind: ind.fitness.values)
-            self.stats.register("avg", np.mean, axis=0)
-            self.stats.register("std", np.std, axis=0)
-            self.stats.register("min", np.min, axis=0)
-            self.stats.register("max", np.max, axis=0)
+            # self.stats.register("avg", np.mean, axis=0)
+            # self.stats.register("std", np.std, axis=0)
+            # self.stats.register("min", np.min, axis=0)
+            # self.stats.register("max", np.max, axis=0)
+            self.stats.register('rmse',  self._stat_rmse)
+            self.stats.register('r2',    self._stat_r2)
+            # self.stats.register('nodes', self._stat_nodes)
+
         else:
             self.stats = tools.Statistics(key=self.statistic_fun)
             self.stats.register("min", np.min, axis=0)
@@ -740,7 +817,18 @@ class GPRegressor(NormalizationRegressor):
             else:
                 Yp += np.multiply(self.pipelines[i].predict(features), category[:, i])
         return Yp
+    
+    def _stat_rmse(self, pop):
+        y_pred = self.predict(self.train_data)
+        return np.sqrt(mean_squared_error(self.Y, y_pred))
+    
+    def _stat_r2(self, pop): 
+        y_pred = self.predict(self.train_data)
+        return r2_score(self.Y, y_pred)
 
+    def _stat_nodes(self):
+        return sum(len(ind) for ind in self.pop)
+    
     def __deepcopy__(self, memodict={}):
         return c_deepcopy(self)
 
@@ -869,7 +957,7 @@ class GPRegressor(NormalizationRegressor):
             individual_to_tuple = cluster_gp_tools.individual_to_tuple
 
         logbook = tools.Logbook()
-        logbook.header = ["gen", "nevals"] + (stats.fields if stats else [])
+        logbook.header = ["gen"] + (stats.fields if stats else [])    # ["gen", "nevals"]
 
         # Evaluate the individuals with an invalid fitness
         toolbox.evaluate(population)
@@ -909,6 +997,8 @@ class GPRegressor(NormalizationRegressor):
             if self.structure_diversity:
                 count = 0
                 new_offspring = []
+                
+                # POPULATION GROWING 
                 while len(new_offspring) < pop_size:
                     count += 1
                     # Select the next generation individuals
@@ -1149,7 +1239,8 @@ class PSTreeRegressor(NormalizationRegressor):
         if type(self.min_samples_leaf) is str:
             raise Exception
 
-        category, _ = self.space_partition(X, y)
+        # partitioning the space for the first time before GP evo
+        category, decision_tree = self.space_partition(X, y)
         if self.adaptive_tree is True:
             self.tree_class = DecisionTreeClassifier
         if self.adaptive_tree == "Soft":
@@ -1163,6 +1254,7 @@ class PSTreeRegressor(NormalizationRegressor):
             soft_tree=self.soft_tree,
             adaptive_tree=self.adaptive_tree,
             super_object=self,
+            decision_tree=decision_tree,
             **self.params,
         )
         self.regr.fit(X, y, category)
