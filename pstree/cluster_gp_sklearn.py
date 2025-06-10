@@ -5,6 +5,7 @@ import time
 import traceback
 from collections import deque, defaultdict
 from itertools import compress
+import time 
 
 import pyximport
 from deap import creator, base, tools, gp
@@ -50,7 +51,7 @@ from pstree.cluster_gp_tools import (
     selIBEA,
     c_deepcopy,
 )
-from pstree.common_utils import gene_to_string, reset_random
+from pstree.common_utils import gene_to_string, reset_random, tree_to_lisp
 from pstree.custom_sklearn_tools import LassoRidge, RFERegressor
 from pstree.gp_function import *
 from pstree.gp_visualization_utils import multigene_gp_to_string
@@ -282,6 +283,7 @@ class GPRegressor(NormalizationRegressor):
         complexity_measure=False,
         parsimonious_variable=False,
         decision_tree=None,
+        test_data=None,
         **params,
     ):
         """
@@ -356,6 +358,8 @@ class GPRegressor(NormalizationRegressor):
         self.tree_shrinkage = tree_shrinkage
         self.correlation_elimination = correlation_elimination
         self.decision_tree = decision_tree
+        self.test_data = test_data
+        self.t_start = time.time()
 
     def get_predicted_list(self, pop):
         predicted_list = []
@@ -458,29 +462,43 @@ class GPRegressor(NormalizationRegressor):
             assert len(ind.fitness.values) == target_dimension
             assert len(ind.fitness.wvalues) == target_dimension
 
-        self.sizes = sizes 
-        nodes_count = self.get_nodes_count()
-        
-                         
+        self.nodes_count = self.get_nodes_count(sizes, pipelines)
+
         return tuple(fitness)
     
-    def get_nodes_count(self,): 
+    def ret_nodes_count(self, pop): 
+        return self.nodes_count
+
+    def get_nodes_count(self, sizes, pipelines): 
         dt = self.decision_tree
-        sizes = self.sizes 
+        sizes = np.array(sizes)
+        sizes_features = sizes[self.train_data.shape[1]:]
         
-        # Extract which features are used for splitting and get their sizes 
+        # Convert to lisp to get the class and f_split counts 
+        class_count, f_split_count = tree_to_lisp(dt)
         
-        # Sum the nodes used for condition feature > 3 (= 2 + feature size) 
+        # for each split, we need 2 nodes + the feature
+        # feature, < , threshold, left and right branches 
+        size_split = np.sum([sizes[id] + 2 for id in f_split_count])
         
-        # Check which coefficients are 0 in the lasso regression 
-        # for each m [(coeff > 0) * size] to get the total size of each regression
-                
-        # Multiply the sizes of regressions by the amount of times 
-        # each one is used (their sum should be m), e.g.: [1, 2, 0, 1] (shape = sum)
-        # then sum to get the total nodes used in terminals
+        counts = []
+        # Counting only the unique (!) somehow favoring PS-Tree
+        for m in np.unique(class_count):
+            pipe_coef = pipelines[m]['Ridge'].coef_
+            
+            # Non zero counting larger than 0.01
+            nz = np.abs(pipe_coef) > 0.01
+            
+            # multiplying by 2.5 because we need a threshold, * sign
+            # and half of a plus sign (because it is shared)
+            count_nz = int(np.sum(nz) * 2.5)
+            size_nz = np.sum(sizes_features[nz])
+            tot = count_nz + size_nz
+            counts.append(tot)
         
-        # Add the features for splitting + nodes and the terminals' sizes 
-        
+        total_nodes = np.sum(counts) + size_split
+        return total_nodes
+            
         
 
     def model_construction(self, all_features, final_model):
@@ -761,7 +779,12 @@ class GPRegressor(NormalizationRegressor):
             # self.stats.register("max", np.max, axis=0)
             self.stats.register('rmse',  self._stat_rmse)
             self.stats.register('r2',    self._stat_r2)
+            self.stats.register('nodes', self.ret_nodes_count)
             # self.stats.register('nodes', self._stat_nodes)
+            
+            if self.test_data[0] is not None: 
+                self.stats.register('te_rmse',  self._stat_rmse_test)
+                self.stats.register('te_r2',    self._stat_r2_test)
 
         else:
             self.stats = tools.Statistics(key=self.statistic_fun)
@@ -820,14 +843,25 @@ class GPRegressor(NormalizationRegressor):
     
     def _stat_rmse(self, pop):
         y_pred = self.predict(self.train_data)
-        return np.sqrt(mean_squared_error(self.Y, y_pred))
+        return round(np.sqrt(mean_squared_error(self.Y, y_pred)),2)
     
-    def _stat_r2(self, pop): 
-        y_pred = self.predict(self.train_data)
-        return r2_score(self.Y, y_pred)
+    def _stat_rmse_test(self, pop):
+        xte, yte = self.test_data
+        y_pred = self.predict(xte)
+        return round(np.sqrt(mean_squared_error(yte, y_pred)), 2)
 
-    def _stat_nodes(self):
+    def _stat_r2(self, pop):
+        y_pred = self.predict(self.train_data)
+        return round(r2_score(self.Y, y_pred), 2)
+
+    def _stat_r2_test(self, pop):
+        xte, yte = self.test_data
+        y_pred = self.predict(xte)
+        return round(r2_score(yte, y_pred), 2)
+
+    def _stat_nodes(self, pop):
         return sum(len(ind) for ind in self.pop)
+    
     
     def __deepcopy__(self, memodict={}):
         return c_deepcopy(self)
@@ -957,7 +991,7 @@ class GPRegressor(NormalizationRegressor):
             individual_to_tuple = cluster_gp_tools.individual_to_tuple
 
         logbook = tools.Logbook()
-        logbook.header = ["gen"] + (stats.fields if stats else [])    # ["gen", "nevals"]
+        logbook.header = ["gen", "time"] + (stats.fields if stats else [])    # ["gen", "nevals"]
 
         # Evaluate the individuals with an invalid fitness
         toolbox.evaluate(population)
@@ -966,7 +1000,11 @@ class GPRegressor(NormalizationRegressor):
             halloffame.update(population)
 
         record = stats.compile(population) if stats else {}
-        logbook.record(gen=0, nevals=len(population), **record)
+        
+        logbook.record(gen=0, 
+                       nevals=len(population), 
+                       time=time.time() - self.t_start, 
+                       **record)
         if verbose:
             print(logbook.stream)
 
@@ -1146,7 +1184,10 @@ class GPRegressor(NormalizationRegressor):
 
             # Append the current generation statistics to the logbook
             record = stats.compile(population) if stats else {}
-            logbook.record(gen=gen, nevals=len(population), **record)
+            logbook.record(gen=gen, 
+                           nevals=len(population), 
+                           time=time.time() - self.t_start, 
+                           **record)
             if verbose:
                 print(logbook.stream)
 
@@ -1207,6 +1248,8 @@ class PSTreeRegressor(NormalizationRegressor):
         final_soft_tree=True,
         adaptive_tree=True,
         random_state=0,
+        X_test=None,
+        y_test=None,
         **params,
     ):
         """
@@ -1228,6 +1271,7 @@ class PSTreeRegressor(NormalizationRegressor):
         self.soft_tree = soft_tree
         self.final_soft_tree = soft_tree & final_soft_tree
         self.adaptive_tree = adaptive_tree
+        self.test_data = (X_test, y_test)
 
     @train_normalization
     def fit(self, X: np.ndarray, y=None):

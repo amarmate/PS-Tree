@@ -18,8 +18,8 @@ if __name__ == "__main__":
     r = PSTreeRegressor(regr_class=GPRegressor, 
                         tree_class=DecisionTreeRegressor,
                         height_limit=6, 
-                        n_pop=10,  # 25
-                        n_gen=20,  # 50 
+                        n_pop=25,  # 25
+                        n_gen=200,  # 50 
                         basic_primitive=True,
                         size_objective=True,
                         max_leaf_nodes=4,  # 4 
@@ -29,6 +29,7 @@ if __name__ == "__main__":
                         normalize=False,
                         verbose=True,
                         adaptive_tree=True,
+                        test_data=(X_test, y_test),
     )
 
     r.fit(X_train, y_train)
