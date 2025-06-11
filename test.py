@@ -9,27 +9,28 @@ from sklearn.metrics import r2_score, root_mean_squared_error as rmse
 from matplotlib import pyplot as plt
 
 if __name__ == "__main__":
-    X,y = load_diabetes()
-    # X, y, _, _ = load_synthetic1()
+    # X,y = load_diabetes()
+    X, y, _, _ = load_synthetic12()
 
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=0)
 
     r = PSTreeRegressor(regr_class=GPRegressor, 
                         tree_class=DecisionTreeRegressor,
-                        height_limit=6, 
+                        height_limit=6,  # 6 
                         n_pop=25,  # 25
-                        n_gen=200,  # 50 
+                        n_gen=5,  # 50 
                         basic_primitive=True,
                         size_objective=True,
                         max_leaf_nodes=4,  # 4 
                         constant_range=2,  # 2 
                         random_seed=0, 
-                        random_state=0,
+                        # random_state=0,
                         normalize=False,
                         verbose=True,
                         adaptive_tree=True,
                         test_data=(X_test, y_test),
+                        final_prune=True,
     )
 
     r.fit(X_train, y_train)
@@ -43,8 +44,9 @@ if __name__ == "__main__":
     plt.ylabel('Predictions')
     plt.title('PSTreeRegressor Predictions vs True Values')
     plt.savefig('pstree_regressor_predictions.png')
+    
+    print(type(r.regr.log_book))
         
-    # print(r.model())
 
 
 

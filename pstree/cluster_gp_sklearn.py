@@ -780,10 +780,11 @@ class GPRegressor(NormalizationRegressor):
             self.stats.register('rmse',  self._stat_rmse)
             self.stats.register('r2',    self._stat_r2)
             self.stats.register('nodes', self.ret_nodes_count)
-            # self.stats.register('nodes', self._stat_nodes)
+            self.stats.register('pop_nodes', self._stat_nodes)
             
             if self.test_data[0] is not None: 
                 self.stats.register('te_rmse',  self._stat_rmse_test)
+    
                 self.stats.register('te_r2',    self._stat_r2_test)
 
         else:
@@ -812,6 +813,9 @@ class GPRegressor(NormalizationRegressor):
 
     def predict(self, X, y=None, category=None):
         # save_object([str(x) for x in self.hof.items], 'model.pkl')
+        
+        # if no category is passed, then we are only predicting with 
+        # class 0, which doesn't make a lot of sense 
         if (category is None) or (not self.cluster_gp):
             category = np.full([X.shape[0]], 0)
 
@@ -842,21 +846,21 @@ class GPRegressor(NormalizationRegressor):
         return Yp
     
     def _stat_rmse(self, pop):
-        y_pred = self.predict(self.train_data)
-        return round(np.sqrt(mean_squared_error(self.Y, y_pred)),2)
+        y_pred = self.super_object.predict(self.train_data)
+        return round(np.sqrt(mean_squared_error(self.Y, y_pred)), 2)
     
     def _stat_rmse_test(self, pop):
         xte, yte = self.test_data
-        y_pred = self.predict(xte)
+        y_pred = self.super_object.predict(xte)    
         return round(np.sqrt(mean_squared_error(yte, y_pred)), 2)
 
     def _stat_r2(self, pop):
-        y_pred = self.predict(self.train_data)
+        y_pred = self.super_object.predict(self.train_data)
         return round(r2_score(self.Y, y_pred), 2)
 
     def _stat_r2_test(self, pop):
         xte, yte = self.test_data
-        y_pred = self.predict(xte)
+        y_pred = self.super_object.predict(xte)
         return round(r2_score(yte, y_pred), 2)
 
     def _stat_nodes(self, pop):
@@ -999,6 +1003,7 @@ class GPRegressor(NormalizationRegressor):
         if halloffame is not None:
             halloffame.update(population)
 
+        # The stats are compiled here for the first time 
         record = stats.compile(population) if stats else {}
         
         logbook.record(gen=0, 
@@ -1200,12 +1205,24 @@ class GPRegressor(NormalizationRegressor):
         self.super_object.max_leaf_nodes = self.best_leaf_node_num
         self.super_object.soft_tree = self.super_object.final_soft_tree
         if self.final_prune is not None:
+            # the self.final_prune model is L1-penalised, so it will drive
+            # many of the coefficients to 0 (before used as fitnesses)
             toolbox.evaluate(self.best_pop, final_model=self.final_prune)
 
         features = self.feature_synthesis(
             self.train_data, self.best_pop, self.original_features
         )
         self.adaptive_tree_generation(features, self.pipelines)
+        
+        toolbox.evaluate(self.best_pop, final_model=True)
+        record = stats.compile(population) if stats else {}
+        logbook.record(gen='FINAL', 
+                        nevals=len(population)+1, 
+                        time=time.time() - self.t_start, 
+                        **record)
+        if verbose: 
+            print(logbook.stream)
+
         return population, logbook
 
 
@@ -1402,7 +1419,7 @@ class PSTreeRegressor(NormalizationRegressor):
         else:
             labels = get_labels(self.tree, X)
         backup_X = X.copy()
-
+        
         if len(labels.shape) == 1:
             labels = self.category_map(labels)
 
