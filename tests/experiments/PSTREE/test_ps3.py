@@ -1,16 +1,15 @@
 import numpy as np
-from slim_gsgp_lib_np.main_multi_slim import multi_slim
 import time 
 
 from tests.metrics_test import *
-from tests.experiments.GP.config_gp import *
+from tests.experiments.PSTREE.config_ps3 import *
 from tests.utils_test import simplify_tuple_expression_multi
 from tests.misc_functions import get_classification_summary
 
-from slim_gsgp_lib_np.utils.callbacks import LogSpecialist
+from pstree.cluster_gp_sklearn import PSTreeRegressor
 
 
-def multi_test(best_params, 
+def ps3_test(best_params, 
                dataset, 
                split_id, 
                seed):

@@ -52,6 +52,8 @@ NORMALIZE               = False
 FINAL_PRUNE             = True
 VERBOSE                 = False
 SIZE_OBJECTIVE          = True
+SOFT_TREE               = False
+
 REGR_CLASS              = GPRegressor
 TREE_CLASS              = DecisionTreeRegressor
 
@@ -74,6 +76,7 @@ ps3_params = {
     "verbose": VERBOSE,
     "adaptive_tree": ADAPTIVE_TREE,
     "final_prune": FINAL_PRUNE,
+    "soft_tree": SOFT_TREE,
 }
 
 

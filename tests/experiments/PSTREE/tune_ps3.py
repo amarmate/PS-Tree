@@ -3,10 +3,11 @@ import numpy as np
 import hashlib
 from sklearn.model_selection import KFold
 from tests.metrics_test import *
+from tests.metrics
 from tests.experiments.PSTREE.config_ps3 import *
 from pstree.cluster_gp_sklearn import PSTreeRegressor
 
-def multi_tune(gen_params, 
+def ps3_tune(gen_params, 
                dataset, 
                split_id,
                n_splits=5):
@@ -35,7 +36,7 @@ def multi_tune(gen_params,
         rmse_test       = rmse(reg.predict(X_te), y_te)
         r2_train        = r2_score(y_tr, r.predict(X_tr))
         r2_test         = r2_score(y_te, r.predict(X_te))
-        class_n         = 0 
+        class_n         = np.nunique(reg.labels)
         class_summary   = []
         
         rmses_tr.append(rmse_train)

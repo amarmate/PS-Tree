@@ -125,7 +125,11 @@ def get_specialist_masks(tree_node, X_data, current_mask=None, indices=True):
         merged[ind] = np.where(mask)[0].tolist()
     return merged
 
-def get_classification_summary(tree_node, X_data, mask):
+def get_classification_summary(X_data,
+                               mask,
+                               spec_masks=None,
+                               tree_node=None):
+    assert (tree_node is not None) or (spec_masks is not None)
     spec_masks = get_specialist_masks(tree_node, X_data, indices=True)
     id_masks = [np.where(submask)[0].tolist() for submask in mask]
 

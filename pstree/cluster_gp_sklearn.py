@@ -835,7 +835,7 @@ class GPRegressor(NormalizationRegressor):
                 features = X[current_c]
             else:
                 features = X
-
+                
             if len(features.shape) == 1:
                 features = features.reshape(1, len(features))
             assert features.shape[1] >= len(self.best_pop), features.shape[1]
@@ -1422,8 +1422,9 @@ class PSTreeRegressor(NormalizationRegressor):
         
         if len(labels.shape) == 1:
             labels = self.category_map(labels)
-
+        
         y_predict = self.regr.predict(X, y, category=labels)
+        self.labels = labels 
 
         assert np.all(backup_X == X), "Data has been changed unexpected!"
         return y_predict

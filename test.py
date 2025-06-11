@@ -31,6 +31,7 @@ if __name__ == "__main__":
                         adaptive_tree=True,
                         test_data=(X_test, y_test),
                         final_prune=True,
+                        soft_tree=False,
     )
 
     r.fit(X_train, y_train)
@@ -46,6 +47,7 @@ if __name__ == "__main__":
     plt.savefig('pstree_regressor_predictions.png')
     
     print(type(r.regr.log_book))
+    print(r.labels)
         
 
 
