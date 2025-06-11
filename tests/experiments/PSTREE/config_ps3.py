@@ -43,7 +43,7 @@ AUTO_COMMIT_INTERVAL = 0.25 * 3600 # every 15 min
 #  PS3 Experiment Configuration   # 
 # ------------------------------- # 
 
-BASIC_PRIMITIVE         = TRUE
+BASIC_PRIMITIVE         = True
 CONSTANT_RANGE          = 2
 N_POP                   = 25
 N_GEN                   = 500
@@ -60,8 +60,8 @@ TREE_CLASS              = DecisionTreeRegressor
 
 
 SPACE_PS3 = [
-    Integer(2, 8, name='max_leaf_nodes')
-    Integer(3, 8, name='height_limit')           
+    Integer(2, 8, name='max_leaf_nodes'),
+    Integer(3, 8, name='height_limit'),     
 ]
 
 ps3_params = {

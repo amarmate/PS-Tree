@@ -1,6 +1,6 @@
 import numpy as np 
 import mlflow 
-from tests.experiments.PSTREE.config_gp import *
+from tests.experiments.PSTREE.config_ps3 import *
 from tests.experiments.tracking import get_tasks
 
 from tests.experiments.tunner import Tuner

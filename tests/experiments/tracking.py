@@ -1,6 +1,6 @@
 import os 
 from pathlib import Path
-from slim_gsgp_lib_np.utils.utils import train_test_split
+from tests.metrics_test import train_test_split
 
 def get_tasks(args, config): 
     """

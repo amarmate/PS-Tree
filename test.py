@@ -1,19 +1,22 @@
-from sklearn.model_selection import train_test_split
-
 from pstree.cluster_gp_sklearn import PSTreeRegressor, GPRegressor
 from pstree.datasets.data_loader import *
 from pstree.datasets.synthetic_datasets import *
 from sklearn.tree import DecisionTreeRegressor
-from sklearn.metrics import r2_score, root_mean_squared_error as rmse
+from sklearn.metrics import (r2_score, 
+                             root_mean_squared_error as rmse)
+from tests.misc_functions import get_classification_summary
+from tests.metrics_test import (train_test_split, 
+                                calc_scores_from_summary as calc_scores)
 
 from matplotlib import pyplot as plt
 
 if __name__ == "__main__":
     # X,y = load_diabetes()
-    X, y, _, _ = load_synthetic12()
+    X, y, mask, mask = load_synthetic12()
 
-
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=0)
+    train, test = train_test_split(X, y, p_test=0.2, seed=0, indices_only=True)
+    X_train, X_test, y_train, y_test = X[train], X[test], y[train], y[test]
+    mask_train = [m[train] for m in mask] if mask is not None else None
 
     r = PSTreeRegressor(regr_class=GPRegressor, 
                         tree_class=DecisionTreeRegressor,
@@ -46,9 +49,19 @@ if __name__ == "__main__":
     plt.title('PSTreeRegressor Predictions vs True Values')
     plt.savefig('pstree_regressor_predictions.png')
     
-    print(type(r.regr.log_book))
-    print(r.labels)
-        
+    class_summary = get_classification_summary(
+        X_data    = X_train,
+        mask      = mask_train,
+        spec_masks= r.labels
+    )
+    print("Confusion summary:\n", class_summary)
+
+    acc, macro_f1, weighted_f1 = calc_scores(class_summary)
+    print(f"Accuracy: {acc:.3f}")
+    print(f"Macro‑F1: {macro_f1:.3f}")
+    print(f"Weighted‑F1: {weighted_f1:.3f}")
+    
+    print(r.regr.log_book)
 
 
 
