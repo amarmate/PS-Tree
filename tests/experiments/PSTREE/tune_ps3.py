@@ -34,6 +34,7 @@ def ps3_tune(gen_params,
             random_state = split_id + i, 
         )
         t0 = time.time()
+        print(X_tr[:5])
         reg.fit(X_tr, y_tr)
         elapsed = time.time() - t0
         
