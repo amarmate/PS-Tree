@@ -26,14 +26,18 @@ RUN . venv/bin/activate \
  && git clone --depth 1 https://github.com/amarmate/PS-Tree.git /app/PS-Tree \
  && cd PS-Tree \
  && pip install numpy \
- && pip install -r requirements.txt \
- && pip install mlflow scikit-optimize
+ && pip install -r requirements.txt
 
 RUN . venv/bin/activate \ 
- && pip install pyximport sympy cython 
+ && pip install sympy cython \
+ && pip install mlflow scikit-optimize
 
-CMD ["/bin/bash", "-lc", "source venv/bin/activate && bash"]
 
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
-#  && git clone --depth 1 https://github.com/amarmate/PS-Tree.git /app/PS-Tree \
+EXPOSE 22
+EXPOSE 8080
+
+ENTRYPOINT ["/entrypoint.sh"]
 
