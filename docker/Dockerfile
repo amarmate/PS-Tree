@@ -26,7 +26,8 @@ RUN . venv/bin/activate \
  && git clone --depth 1 https://github.com/amarmate/PS-Tree.git /app/PS-Tree \
  && cd PS-Tree \
  && pip install numpy \
- && pip install -r requirements.txt
+ && pip install -r requirements.txt \
+ && pip install mlflow scikit-optimize
 
 RUN . venv/bin/activate \ 
  && pip install pyximport sympy cython 

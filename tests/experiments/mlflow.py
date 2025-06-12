@@ -1,9 +1,6 @@
 from mlflow.tracking import MlflowClient
 from mlflow.entities import ViewType
 
-import os
-os.environ['MLFLOW_TRACKING_URI'] = 'file:../data/mlruns'
-
 def cleanup_running_runs():
     print("Cleaning up RUNNING and FAILED runs...")
     client = MlflowClient()

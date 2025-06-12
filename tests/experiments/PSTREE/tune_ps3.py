@@ -11,14 +11,15 @@ from tests.metrics_test import calc_scores_from_summary as calc_scores
 def ps3_tune(gen_params, 
                dataset, 
                split_id,
-               n_splits=5):
+               n_splits=5,
+               **kwargs):
     
     params = gen_params.copy()
     data_all = dataset.copy()
     mask = data_all.pop('mask')
     
     kf = KFold(n_splits=n_splits, shuffle=True, random_state=split_id)
-    rmses_tr, rmses_te, nodes, overfit, time = [], [], [], [], []
+    rmses_tr, rmses_te, nodes, overfit, times = [], [], [], [], []
     r2_tr, r2_te, classes_n = [], [], []
     accs, macro_f1s, weighted_f1s = [], [], []
 
@@ -26,7 +27,7 @@ def ps3_tune(gen_params,
         X_tr, y_tr = data_all['X_train'][idx_tr], data_all['y_train'][idx_tr]
         X_te, y_te = data_all['X_train'][idx_te], data_all['y_train'][idx_te]
         mask_kf = [marr[idx_tr] for marr in mask] if mask is not None else None
-
+        
         reg = PSTreeRegressor(
             **params,
             random_seed  = split_id + i,
@@ -36,11 +37,12 @@ def ps3_tune(gen_params,
         reg.fit(X_tr, y_tr)
         elapsed = time.time() - t0
         
+        labels = reg.predict_labels(X_tr)
         rmse_train      = rmse(reg.predict(X_tr), y_tr)
         rmse_test       = rmse(reg.predict(X_te), y_te)
         r2_train        = r_squared(y_tr, reg.predict(X_tr))
         r2_test         = r_squared(y_te, reg.predict(X_te))
-        class_n         = np.nunique(reg.labels)
+        class_n         = len(np.unique(labels))
         
         rmses_tr.append(rmse_train)
         rmses_te.append(rmse_test)
@@ -49,19 +51,20 @@ def ps3_tune(gen_params,
         nodes.append(reg.regr.nodes_count)
         classes_n.append(class_n)
         overfit.append(100 * (rmse_train - rmse_test) / rmse_train)
-        time.append(elapsed)
+        times.append(elapsed)
         
         if mask is not None:
              class_summary = get_classification_summary(
                  X_data = X_tr, 
                  mask = mask_kf,
-                 spec_masks = reg.labels
+                 spec_masks = labels,
                  )
+             
              acc, macro_f1, weighted_f1 = calc_scores(class_summary)    
              accs.append(acc)
              macro_f1s.append(macro_f1)
-             weighted_f1s.append(weighted_f1)        
-
+             weighted_f1s.append(weighted_f1)      
+             
     stats_general = {
         'rmse_tr'        : float(np.mean(rmses_tr)),
         'r2_tr'          : float(np.mean(r2_tr)),
@@ -69,7 +72,7 @@ def ps3_tune(gen_params,
         'overfit'        : float(np.mean(overfit)),
         'nodes'          : float(np.mean(nodes)),
         'classes_n'      : float(np.mean(classes_n)),
-        'time'           : float(np.mean(time)),
+        'time'           : float(np.mean(times)),
     }
 
     if mask is not None: 

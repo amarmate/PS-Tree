@@ -5,7 +5,7 @@ from pathlib import Path
 import pandas as pd
 import mlflow
 
-from functions.utils_test import pf_rmse_comp_time, log_latex_as_image
+from tests.utils_test import pf_rmse_comp_time, log_latex_as_image
 
 
 class Tester:

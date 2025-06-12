@@ -126,24 +126,77 @@ def get_specialist_masks(tree_node, X_data, current_mask=None, indices=True):
     return merged
 
 
+# def get_classification_summary(X_data,
+#                                mask,
+#                                spec_masks=None,
+#                                tree_node=None):
+#     """
+#     Liefert eine quadratische Kontingenzmatrix mit Shape (n_true_classes, n_true_classes).
+#     Zeilen = vorhergesagte Klassen, Spalten = wahre Klassen.
+#     """
+#     assert (tree_node is not None) or (spec_masks is not None), \
+#         "Entweder spec_masks oder tree_node muss gesetzt sein."
+
+#     if spec_masks is None:
+#         spec_dict = get_specialist_masks(tree_node, X_data, indices=True)
+#     elif isinstance(spec_masks, dict):
+#         spec_dict = spec_masks
+#     else:
+#         arr = np.array(spec_masks)
+#         if arr.dtype == bool:
+#             spec_dict = {i: np.where(arr[i])[0].tolist()
+#                          for i in range(len(arr))}
+#         else:
+#             labels = np.unique(arr)
+#             spec_dict = {lab: np.where(arr == lab)[0].tolist()
+#                          for lab in labels}
+
+#     id_masks = []
+#     for m in mask:
+#         m_arr = np.array(m)
+#         if m_arr.dtype == bool:
+#             id_masks.append(np.where(m_arr)[0].tolist())
+#         else:
+#             id_masks.append(m_arr.tolist())
+
+#     class_summary = []
+#     for _, pred_indices in spec_dict.items():
+#         pred_set = set(pred_indices)
+#         row = [len(pred_set.intersection(m_indices))
+#                for m_indices in id_masks]
+#         class_summary.append(row)
+#     class_summary = np.array(class_summary, dtype=int)
+
+#     n_true = class_summary.shape[1]
+#     n_pred = class_summary.shape[0]
+#     if n_pred < n_true:
+#         padding = np.zeros((n_true - n_pred, n_true), dtype=int)
+#         class_summary = np.vstack([class_summary, padding])
+#     elif n_pred > n_true:
+#         class_summary = class_summary[:n_true, :n_true]
+
+#     return class_summary
+
+
 def get_classification_summary(X_data,
                                mask,
                                spec_masks=None,
                                tree_node=None):
     """
-    Liefert eine quadratische Kontingenzmatrix mit Shape (n_true_classes, n_true_classes).
-    Zeilen = vorhergesagte Klassen, Spalten = wahre Klassen.
+    Liefert eine transponierte Kontingenzmatrix mit Shape (n_true_classes, n_pred_classes).
+    Zeilen = wahre Klassen, Spalten = vorhergesagte Klassen.
     """
     assert (tree_node is not None) or (spec_masks is not None), \
         "Entweder spec_masks oder tree_node muss gesetzt sein."
-
-    # --- 1) spec_dict aus spec_masks bauen ---
+                               
     if spec_masks is None:
         spec_dict = get_specialist_masks(tree_node, X_data, indices=True)
     elif isinstance(spec_masks, dict):
         spec_dict = spec_masks
     else:
         arr = np.array(spec_masks)
+        assert spec_masks.shape[0] == len(mask[0]), "spec_masks must have the same length as mask[0]"
+        
         if arr.dtype == bool:
             spec_dict = {i: np.where(arr[i])[0].tolist()
                          for i in range(len(arr))}
@@ -151,8 +204,7 @@ def get_classification_summary(X_data,
             labels = np.unique(arr)
             spec_dict = {lab: np.where(arr == lab)[0].tolist()
                          for lab in labels}
-
-    # --- 2) id_masks aus mask bauen ---
+        
     id_masks = []
     for m in mask:
         m_arr = np.array(m)
@@ -161,23 +213,24 @@ def get_classification_summary(X_data,
         else:
             id_masks.append(m_arr.tolist())
 
-    # --- 3) Kreuztabelle berechnen ---
+    # Matrix mit shape (n_true_classes, n_pred_classes) erzeugen
     class_summary = []
-    for _, pred_indices in spec_dict.items():
-        pred_set = set(pred_indices)
-        row = [len(pred_set.intersection(m_indices))
-               for m_indices in id_masks]
+    for m_indices in id_masks:
+        true_set = set(m_indices)
+        row = [len(true_set.intersection(pred_indices))
+               for _, pred_indices in spec_dict.items()]
         class_summary.append(row)
+
     class_summary = np.array(class_summary, dtype=int)
 
-    # --- 4) Auffüllen auf quadratisch (n_true × n_true) ---
-    n_true = class_summary.shape[1]
-    n_pred = class_summary.shape[0]
+    n_true = class_summary.shape[0]
+    n_pred = class_summary.shape[1]
     if n_pred < n_true:
-        padding = np.zeros((n_true - n_pred, n_true), dtype=int)
-        class_summary = np.vstack([class_summary, padding])
+        padding = np.zeros((n_true, n_true - n_pred), dtype=int)
+        class_summary = np.hstack([class_summary, padding])
     elif n_pred > n_true:
-        # optional: Spalten schneiden, falls vorhergesagte Klassen > wahre Klassen
-        class_summary = class_summary[:n_true, :n_true]
+        padding = np.zeros((n_pred - n_true, n_pred), dtype=int)
+        class_summary = np.vstack([class_summary, padding])
+        class_summary = class_summary[:n_pred, :]  # just in case
 
     return class_summary

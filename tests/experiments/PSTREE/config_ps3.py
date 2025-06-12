@@ -33,6 +33,7 @@ PREFIX_SAVE = 'PS3'
 EXPERIMENT_NAME = 'PS3'
 TEST_DIR = 'test'
 TUNE_DIR = 'train'
+MLFLOW_TRACKING_URI = 'file:../data/mlruns' 
 
 DATA_DIR = 'data'
 REPO_URL = 'git@github.com:amarmate/data_transfer.git'
@@ -46,14 +47,13 @@ AUTO_COMMIT_INTERVAL = 0.25 * 3600 # every 15 min
 BASIC_PRIMITIVE         = True
 CONSTANT_RANGE          = 2
 N_POP                   = 25
-N_GEN                   = 500
+N_GEN                   = 5 
 ADAPTIVE_TREE           = True
 NORMALIZE               = False
 FINAL_PRUNE             = True
-VERBOSE                 = False
+VERBOSE                 = False  # False
 SIZE_OBJECTIVE          = True
 SOFT_TREE               = False
-
 REGR_CLASS              = GPRegressor
 TREE_CLASS              = DecisionTreeRegressor
 
@@ -90,7 +90,7 @@ config = {
     'N_SPLITS': N_SPLITS,
     'N_CV': N_CV,
 
-    'N_SEARCHES': N_SEARCHES_HYPER,
+    'N_SEARCHES_HYPER': N_SEARCHES_HYPER,
     'N_RANDOM_STARTS': N_RANDOM_STARTS,
 
     'NOISE_SKOPT': NOISE_SKOPT,
@@ -102,6 +102,9 @@ config = {
     'PREFIX_SAVE': PREFIX_SAVE,
     'EXPERIMENT_NAME': EXPERIMENT_NAME,
     'AUTO_COMMIT_INTERVAL': AUTO_COMMIT_INTERVAL,
+    'PI' : None,
+    'multi_run': False,
+    'MLFLOW_TRACKING_URI': MLFLOW_TRACKING_URI,
 
     'DATA_DIR': DATA_DIR,
     'TEST_DIR': TEST_DIR,
@@ -111,6 +114,6 @@ config = {
     'datasets' : datasets,
     'SELECTORS': ['no'],
 
-    'SPACE_PS3': SPACE_PS3, 
-    'gen_params' : multi_params,
+    'SPACE_PARAMETERS': SPACE_PS3, 
+    'gen_params' : ps3_params,
 }

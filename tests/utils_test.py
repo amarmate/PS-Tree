@@ -11,9 +11,7 @@ import matplotlib.pyplot as plt
 import mlflow
 import re
 from pathlib import Path
-from slim_gsgp_lib_np.utils.utils import train_test_split
-
-
+from tests.metrics_test import train_test_split
 
 
 

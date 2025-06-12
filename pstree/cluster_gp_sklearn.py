@@ -6,6 +6,8 @@ import traceback
 from collections import deque, defaultdict
 from itertools import compress
 import time 
+import random 
+from functools import partial
 
 import pyximport
 from deap import creator, base, tools, gp
@@ -58,7 +60,6 @@ from pstree.gp_visualization_utils import multigene_gp_to_string
 from pstree.multigene_gp import *
 
 pyximport.install(setup_args={"include_dirs": np.get_include()})
-
 
 class FeatureTransformer(TransformerMixin, BaseEstimator):
     def __init__(self, compiled_individuals):
@@ -782,7 +783,7 @@ class GPRegressor(NormalizationRegressor):
             self.stats.register('nodes', self.ret_nodes_count)
             self.stats.register('pop_nodes', self._stat_nodes)
             
-            if self.test_data[0] is not None: 
+            if self.test_data is not None: 
                 self.stats.register('te_rmse',  self._stat_rmse_test)
     
                 self.stats.register('te_r2',    self._stat_r2_test)
@@ -881,17 +882,17 @@ class GPRegressor(NormalizationRegressor):
 
         add_pset_function(pset, self.max_arity, self.basic_primitive)
         if hasattr(gp, "rand101"):
-            # delete existing constant generator
             delattr(gp, "rand101")
+
         if self.random_float:
             pset.addEphemeralConstant(
                 "rand101",
-                lambda: random.uniform(-self.constant_range, self.constant_range),
+                partial(random.uniform, -self.constant_range, self.constant_range)
             )
         else:
             pset.addEphemeralConstant(
                 "rand101",
-                lambda: random.randint(-self.constant_range, self.constant_range),
+                partial(random.randint, -self.constant_range, self.constant_range)
             )
 
         number_of_objective = self.category_num
@@ -1424,10 +1425,30 @@ class PSTreeRegressor(NormalizationRegressor):
             labels = self.category_map(labels)
         
         y_predict = self.regr.predict(X, y, category=labels)
-        self.labels = labels 
 
         assert np.all(backup_X == X), "Data has been changed unexpected!"
         return y_predict
+    
+    def predict_labels(self, X):
+        """
+        Predict the labels of the input data X.
+        This is used for clustering purposes.
+        """
+        if self.regr.adaptive_tree:
+            features = self.regr.feature_synthesis(
+                X, self.regr.best_pop, original_features=self.regr.original_features
+            )
+            if self.regr.original_features == "original":
+                labels = get_labels(self.tree, features[:, : self.train_data.shape[1]])
+            else:
+                labels = get_labels(self.tree, features, self.soft_tree)
+        else:
+            labels = get_labels(self.tree, X)
+        
+        if len(labels.shape) == 1:
+            labels = self.category_map(labels)
+        
+        return labels
 
     def category_map(self, labels):
         for i, label in enumerate(labels):

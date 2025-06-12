@@ -4,10 +4,10 @@ from tests.experiments.PSTREE.config_ps3 import *
 from tests.experiments.tracking import get_tasks
 
 from tests.experiments.tunner import Tuner
-from tests.experiments.PSTREE.tune_ps3 import gp_tune
+from tests.experiments.PSTREE.tune_ps3 import ps3_tune
 
 from tests.experiments.tester import Tester 
-from tests.experiments.PSTREE.tune_ps3 import gp_test
+from tests.experiments.PSTREE.test_ps3 import ps3_test
 from tests.experiments.github import periodic_commit
 
 from joblib import Parallel, delayed, parallel_config
@@ -18,9 +18,9 @@ def run_experiment(config, task):
     name, selector, split_id = task['gen_params']['dataset_name'], task['gen_params']['selector'], task['split_id']
     print(f"Running task: {EXPERIMENT_NAME} / {name} / selector {selector} / split {split_id}")
     mlflow.set_experiment(f"{EXPERIMENT_NAME}_{name}_{selector}_split{split_id}")
-
+    
     tuner = Tuner(config=config, 
-                  objective_fn = gp_tune,
+                  objective_fn = ps3_tune,
                   **task)
     params = tuner.tune()    
 
@@ -28,7 +28,7 @@ def run_experiment(config, task):
     print(f"Running testing for task: {EXPERIMENT_NAME} / {name} / selector {selector} / split {split_id}")
 
     tester = Tester(config=config, 
-                    test_fn=gp_test,
+                    test_fn=ps3_test,
                     best_params=params, 
                     **task)
     tester.run()
@@ -37,10 +37,10 @@ def run_experiment(config, task):
 
 
 
-def run_gp(args):
+def run_ps3(args):
     np.random.seed(SEED)
 
-    mlflow.set_tracking_uri("file:../data/mlruns")
+    mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
 
     tasks = get_tasks(args, config)
 

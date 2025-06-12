@@ -5,7 +5,7 @@ import mlflow
 from pathlib import Path
 
 from skopt import gp_minimize
-from functions.metrics_test import *
+from tests.metrics_test import *
 
 class Tuner:
     def __init__(self, config, split_id,
