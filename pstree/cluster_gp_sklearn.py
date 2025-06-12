@@ -701,6 +701,8 @@ class GPRegressor(NormalizationRegressor):
             all_features.append(np.squeeze(yp).reshape(-1, 1))
         all_features = np.concatenate(all_features, axis=1)
         all_features = np.nan_to_num(all_features, posinf=0, neginf=0)
+        limit = 0.9 * np.finfo(np.float32).max
+        all_features = np.clip(all_features, -limit, limit)
         return all_features
 
     def adaptive_tree_generation(self, all_features, pipelines):
