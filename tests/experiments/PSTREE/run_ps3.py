@@ -19,6 +19,8 @@ def run_experiment(config, task):
     print(f"Running task: {EXPERIMENT_NAME} / {name} / selector {selector} / split {split_id}")
     mlflow.set_experiment(f"{EXPERIMENT_NAME}_{name}_{selector}_split{split_id}")
     
+    print(task)
+    
     tuner = Tuner(config=config, 
                   objective_fn = ps3_tune,
                   **task)
