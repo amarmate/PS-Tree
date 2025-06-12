@@ -1380,7 +1380,12 @@ class PSTreeRegressor(NormalizationRegressor):
                 self.tree, X[:, : self.train_data.shape[1]], self.soft_tree
             )
         else:
-            self.tree.fit(X, y)
+            try: 
+                self.tree.fit(X, y)
+            except Exception as e: 
+                print("Error in fitting the tree:", e)
+                print("X shape:", X.shape, "y shape:", y.shape)
+                print(X[:5], y[:5])
             self.tree.labels_ = get_labels(self.tree, X, self.soft_tree)
         if len(self.tree.labels_.shape) == 1:
             cluster_num = self.tree.labels_.max() + 1
