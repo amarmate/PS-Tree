@@ -389,12 +389,13 @@ class GPRegressor(NormalizationRegressor):
         
         # after the lasso regressions are fitted, we need to see if there is a better way 
         # to partition the data. Thus, we run adaptive tree generation 
-        self.adaptive_tree_generation(
-            self.feature_construction(
-                compiled_individuals, self.train_data, self.original_features
-            ),
-            pipelines,
-        )
+        # self.adaptive_tree_generation(
+        #     self.feature_construction(
+        #         compiled_individuals, self.train_data, self.original_features
+        #     ),
+        #     pipelines,
+        # )
+        
 
         # If validation_selection is enabled and the current score is better than the best_cv
         # we update the best_cv and the pipelines
@@ -414,6 +415,16 @@ class GPRegressor(NormalizationRegressor):
                 self.best_label = self.category
                 self.best_leaf_node_num = self.super_object.max_leaf_nodes
             # assert len(pipelines) == category_num + 1, f"{category_num + 1},{len(pipelines)}"
+            
+            # Running the adaptive tree generation here because we want to update it
+            self.adaptive_tree_generation(
+                self.feature_construction(
+                    compiled_individuals, self.train_data, self.original_features
+                    ),
+                pipelines,
+            )           
+            self.super_object.tree = self.decision_tree                 
+
         
         fitness = np.array(fitness)
         assert len(fitness.shape) == 2, fitness.shape
@@ -484,7 +495,12 @@ class GPRegressor(NormalizationRegressor):
         
         counts = []
         # Counting only the unique (!) somehow favoring PS-Tree
-        for m in np.unique(class_count):
+        for raw_id in np.unique(class_count):
+            # if tree is not updated because of CV, then use the old tree
+            if raw_id not in np.unique(class_count): 
+                continue
+            m = self.super_object.label_map[raw_id]
+            
             pipe_coef = pipelines[m]['Ridge'].coef_
             
             # Non zero counting larger than 0.01
@@ -685,6 +701,8 @@ class GPRegressor(NormalizationRegressor):
             all_features.append(np.squeeze(yp).reshape(-1, 1))
         all_features = np.concatenate(all_features, axis=1)
         all_features = np.nan_to_num(all_features, posinf=0, neginf=0)
+        limit = 0.9 * np.finfo(np.float32).max
+        all_features = np.clip(all_features, -limit, limit)
         return all_features
 
     def adaptive_tree_generation(self, all_features, pipelines):
@@ -1375,12 +1393,12 @@ class PSTreeRegressor(NormalizationRegressor):
             raise Exception
 
         if hasattr(self, "regr") and self.regr.original_features == "original":
-            self.tree.fit(X[:, : self.train_data.shape[1]], y)
+            self.tree.fit(X[:, : self.train_data.shape[1]], y)         
             self.tree.labels_ = get_labels(
                 self.tree, X[:, : self.train_data.shape[1]], self.soft_tree
             )
         else:
-            self.tree.fit(X, y)
+            self.tree.fit(X, y)            
             self.tree.labels_ = get_labels(self.tree, X, self.soft_tree)
         if len(self.tree.labels_.shape) == 1:
             cluster_num = self.tree.labels_.max() + 1

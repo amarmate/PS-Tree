@@ -4,7 +4,9 @@ from pstree.datasets.synthetic_datasets import (
     load_synthetic7, load_synthetic8, load_synthetic9, load_synthetic10, load_synthetic11, load_synthetic12,
 )
 from pstree.datasets.data_loader import ( 
-    load_airfoil, load_boston, load_concrete_strength, load_diabetes, load_efficiency_heating, load_forest_fires,
+    load_airfoil, load_boston, 
+    load_concrete_strength, 
+    load_diabetes, load_efficiency_heating, load_forest_fires,
     load_istanbul, load_ld50, load_bioav, load_parkinson_updrs, load_ppb, load_resid_build_sale_price,
 )
 
@@ -47,7 +49,7 @@ AUTO_COMMIT_INTERVAL = 0.25 * 3600 # every 15 min
 BASIC_PRIMITIVE         = True
 CONSTANT_RANGE          = 2
 N_POP                   = 25
-N_GEN                   = 500 
+N_GEN                   = 500
 ADAPTIVE_TREE           = True
 NORMALIZE               = False
 FINAL_PRUNE             = True

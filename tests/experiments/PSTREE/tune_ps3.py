@@ -26,12 +26,13 @@ def ps3_tune(gen_params,
         X_tr, y_tr = data_all['X_train'][idx_tr], data_all['y_train'][idx_tr]
         X_te, y_te = data_all['X_train'][idx_te], data_all['y_train'][idx_te]
         mask_kf = [marr[idx_tr] for marr in mask] if mask is not None else None
-        
+                
         reg = PSTreeRegressor(
             **params,
             random_seed  = split_id + i,
             random_state = split_id + i, 
         )
+                        
         t0 = time.time()
         reg.fit(X_tr, y_tr)
         elapsed = time.time() - t0
