@@ -1,6 +1,5 @@
 
 import numpy as np
-import time
 from sklearn.model_selection import KFold
 from tests.metrics_test import *
 from tests.experiments.PSTREE.config_ps3 import *
@@ -51,7 +50,6 @@ def ps3_tune(gen_params,
         nodes.append(reg.regr.nodes_count)
         classes_n.append(class_n)
         overfit.append(100 * (rmse_train - rmse_test) / rmse_train)
-        times.append(elapsed)
         
         if mask is not None:
              class_summary = get_classification_summary(
@@ -72,7 +70,6 @@ def ps3_tune(gen_params,
         'overfit'        : float(np.mean(overfit)),
         'nodes'          : float(np.mean(nodes)),
         'classes_n'      : float(np.mean(classes_n)),
-        'time'           : float(np.mean(times)),
     }
 
     if mask is not None: 
