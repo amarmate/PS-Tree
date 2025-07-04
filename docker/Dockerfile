@@ -6,10 +6,9 @@ RUN apt update \
  && apt install -y software-properties-common \
                    build-essential gfortran git tmux \
                    pkg-config libopenblas-dev liblapack-dev \
-                   openssh-server \
  && add-apt-repository ppa:deadsnakes/ppa \
  && apt update \
- && apt install -y python3.10 python3.10-venv python3.10-dev \
+ && apt install -y python3.10 python3.10-venv python3.10-dev openssh-server \
  && rm -rf /var/lib/apt/lists/*
 
 # 1) Venv anlegen und Pip upgraden

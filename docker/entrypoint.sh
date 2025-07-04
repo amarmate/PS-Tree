@@ -5,10 +5,7 @@ mkdir -p /root/.ssh
 echo "${SSH_PUBKEY:?}" > /root/.ssh/authorized_keys
 chmod 600 /root/.ssh/authorized_keys
 
-if service ssh start; then
-    echo "SSHD started successfully."
-else
-    echo "ERROR: Failed to start SSHD via service command."
-fi
+# Starte den SSH-Server im Vordergrund
+exec /usr/sbin/sshd -D
 
 tail -f /dev/null
