@@ -375,7 +375,7 @@ class GPRegressor(NormalizationRegressor):
         
         # after the individuals have been generated, we need to add them to the features 
         all_features = self.feature_construction(compiled_individuals, self.train_data)
-        
+                
         # now lasso is fitted for each partition, which will generate m different regressions
         # this means that for each individual we will have m feature importances (fitnesses)
         fitness, pipelines, score = self.model_construction(all_features, final_model)
@@ -396,11 +396,17 @@ class GPRegressor(NormalizationRegressor):
         #     pipelines,
         # )
         
+        ### ----------------------------------------------------
+        self.fsave = self.feature_construction(
+            compiled_individuals, self.train_data, self.original_features
+                ).copy()
+        self.pipsave = pipelines.copy()
+        ### ----------------------------------------------------
 
         # If validation_selection is enabled and the current score is better than the best_cv
         # we update the best_cv and the pipelines
         if (
-            (self.validation_selection and score < self.best_cv)
+            (self.validation_selection and score <= self.best_cv)
             or (not self.validation_selection)
             or (final_model != None)
         ):
@@ -416,14 +422,16 @@ class GPRegressor(NormalizationRegressor):
                 self.best_leaf_node_num = self.super_object.max_leaf_nodes
             # assert len(pipelines) == category_num + 1, f"{category_num + 1},{len(pipelines)}"
             
-            # Running the adaptive tree generation here because we want to update it
+            # # Running the adaptive tree generation here because we want to update it
             self.adaptive_tree_generation(
                 self.feature_construction(
                     compiled_individuals, self.train_data, self.original_features
                     ),
                 pipelines,
             )           
-            self.super_object.tree = self.decision_tree                 
+            # self.super_object.tree = self.decision_tree         
+            # labels = self.decision_tree.apply(self.train_data)
+            # self.category, _ = self.super_object.category_generation(labels.max() + 1, self.Y)
 
         
         fitness = np.array(fitness)
@@ -473,19 +481,24 @@ class GPRegressor(NormalizationRegressor):
             ind.fitness.values = fitness_values
             assert len(ind.fitness.values) == target_dimension
             assert len(ind.fitness.wvalues) == target_dimension
-
-        self.nodes_count = self.get_nodes_count(sizes, pipelines)
-
+        
+        if (
+            (self.validation_selection and score <= self.best_cv)
+            or (not self.validation_selection)
+            or (final_model != None)
+        ):
+            self.nodes_count = self.get_nodes_count(sizes)
+            
         return tuple(fitness)
     
     def ret_nodes_count(self, pop): 
         return self.nodes_count
 
-    def get_nodes_count(self, sizes, pipelines): 
-        dt = self.decision_tree
+    def get_nodes_count(self, sizes): 
+        dt = self.super_object.tree
         sizes = np.array(sizes)
         sizes_features = sizes[self.train_data.shape[1]:]
-        
+                
         # Convert to lisp to get the class and f_split counts 
         class_count, f_split_count = tree_to_lisp(dt)
         
@@ -496,15 +509,14 @@ class GPRegressor(NormalizationRegressor):
         counts = []
         # Counting only the unique (!) somehow favoring PS-Tree
         for raw_id in np.unique(class_count):
-            # if tree is not updated because of CV, then use the old tree
-            if raw_id not in np.unique(class_count): 
-                continue
-            m = self.super_object.label_map[raw_id]
+            # print(self.super_object.label_map)
+            # if raw_id not in self.super_object.label_map:
+            #     continue
+            # m = self.super_object.label_map[raw_id]
+            m = raw_id
             
-            pipe_coef = pipelines[m]['Ridge'].coef_
-            
-            # Non zero counting larger than 0.01
-            nz = np.abs(pipe_coef) > 0.01
+            pipe_coef = self.pipelines[m]['Ridge'].coef_
+            nz = np.abs(pipe_coef) > 1e-10
             
             # multiplying by 2.5 because we need a threshold, * sign
             # and half of a plus sign (because it is shared)
@@ -737,6 +749,7 @@ class GPRegressor(NormalizationRegressor):
                 _, decision_tree = self.space_partition_fun(all_features, label)
                 self.category = decision_tree.predict_proba(original_all_features)
                 # decision_tree.labels_ = self.category
+                
             else:
                 # assign data point to new partitions
                 label = np.zeros(len(self.Y))
@@ -751,11 +764,12 @@ class GPRegressor(NormalizationRegressor):
                             - self.Y
                         ) ** 2
                     else:
+                        # predicts for each pipeline the error 
                         loss = (p.predict(all_features) - self.Y) ** 2
+                    # the lowest errors are kept and assigned to the label i
                     label[loss < best_fitness] = i
-                    
                     best_fitness[loss < best_fitness] = loss[loss < best_fitness]
-                    
+                                        
                 # Count the labels
                 # print([np.sum(label == i) for i in range(len(pipelines))])
 
@@ -763,9 +777,10 @@ class GPRegressor(NormalizationRegressor):
                 # and as such some labels will be missclassified. the decision tree 
                 # isnt important. Now I am keeping the decision tree to calculate the
                 # total size of the mode.
-                self.category, self.decision_tree = self.space_partition_fun(
+                self.category, decision_tree = self.space_partition_fun(
                     all_features, label
                 )
+                
 
     def statistic_fun(self, ind):
         # return loss and time
@@ -1320,7 +1335,10 @@ class PSTreeRegressor(NormalizationRegressor):
             raise Exception
 
         # partitioning the space for the first time before GP evo
+        # USING THE TREE CLASS
         category, decision_tree = self.space_partition(X, y)
+        
+        # overriding the tree_class 
         if self.adaptive_tree is True:
             self.tree_class = DecisionTreeClassifier
         if self.adaptive_tree == "Soft":
@@ -1335,6 +1353,7 @@ class PSTreeRegressor(NormalizationRegressor):
             adaptive_tree=self.adaptive_tree,
             super_object=self,
             decision_tree=decision_tree,
+            test_data=self.test_data,
             **self.params,
         )
         self.regr.fit(X, y, category)
