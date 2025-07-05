@@ -805,26 +805,20 @@ class GPRegressor(NormalizationRegressor):
         self.Y = y
 
         verbose = self.verbose
-        if verbose:
-            self.stats = tools.Statistics(key=lambda ind: ind.fitness.values)
-            # self.stats.register("avg", np.mean, axis=0)
-            # self.stats.register("std", np.std, axis=0)
-            # self.stats.register("min", np.min, axis=0)
-            # self.stats.register("max", np.max, axis=0)
-            self.stats.register('rmse',  self._stat_rmse)
-            self.stats.register('r2',    self._stat_r2)
-            self.stats.register('nodes', self.ret_nodes_count)
-            self.stats.register('pop_nodes', self._stat_nodes)
-            
-            if self.test_data is not None: 
-                self.stats.register('te_rmse',  self._stat_rmse_test)
-    
-                self.stats.register('te_r2',    self._stat_r2_test)
+        self.stats = tools.Statistics(key=lambda ind: ind.fitness.values)
+        # self.stats.register("avg", np.mean, axis=0)
+        # self.stats.register("std", np.std, axis=0)
+        # self.stats.register("min", np.min, axis=0)
+        # self.stats.register("max", np.max, axis=0)
+        self.stats.register('rmse',  self._stat_rmse)
+        self.stats.register('r2',    self._stat_r2)
+        self.stats.register('nodes', self.ret_nodes_count)
+        self.stats.register('pop_nodes', self._stat_nodes)
+        
+        if self.test_data is not None: 
+            self.stats.register('te_rmse',  self._stat_rmse_test)
 
-        else:
-            self.stats = tools.Statistics(key=self.statistic_fun)
-            self.stats.register("min", np.min, axis=0)
-            self.stats.register("max", np.max, axis=0)
+            self.stats.register('te_r2',    self._stat_r2_test)
 
         backup_X = X.copy()
         backup_y = y.copy()
