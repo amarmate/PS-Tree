@@ -6,6 +6,7 @@ from tests.experiments.PSTREE.config_ps3 import *
 from pstree.cluster_gp_sklearn import PSTreeRegressor
 from tests.misc_functions import get_classification_summary
 from tests.metrics_test import calc_scores_from_summary as calc_scores
+import time 
 
 def ps3_tune(gen_params, 
                dataset, 
