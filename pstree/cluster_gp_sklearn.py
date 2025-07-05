@@ -1353,7 +1353,7 @@ class PSTreeRegressor(NormalizationRegressor):
             adaptive_tree=self.adaptive_tree,
             super_object=self,
             decision_tree=decision_tree,
-            test_data=self.test_data,
+            # test_data=self.test_data,
             **self.params,
         )
         self.regr.fit(X, y, category)
