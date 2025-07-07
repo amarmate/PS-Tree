@@ -385,61 +385,102 @@ def load_synthetic10(n=600, seed=0, noise=0, verbose=False):
 
 
 
-def load_synthetic11(n=600, seed=0, noise=0, verbose=False):
+def load_synthetic11(n=600, *, seed=0, noise=0.0, verbose=False):
     """
-    Synthetic dataset for 8-bit signed addition with latent overflow label in X, with optional noise on the modulo sum.
-    
-    - Inputs:
-        n     : number of samples
-        seed  : random seed
-        noise : standard deviation of Gaussian noise added to sum_mod (in least significant bit units)
-    - Features (X):
-        X[:,0]: operand a (signed 8-bit: -128 to 127)
-        X[:,1]: operand b (signed 8-bit: -128 to 127)
-        X[:,2]: overflow flag (0=no overflow, 1=overflow)
-    - Target (y):
-        sum_mod_noisy = (a + b) mod 256, reinterpreted as signed 8-bit, plus Gaussian noise
+    Synthetic crop-yield dataset whose five classes contain (almost) the
+    same number of samples.
+
+    The first four classes are the agronomic regimes described in the
+    original `load_synthetic11`; any sample that satisfies none of them
+    is assigned to the fallback class ‘other’.  
+    Samples are generated **per class** until the target counts are met,
+    making the final masks mutually exclusive, collectively exhaustive
+    and roughly balanced.
+
+    Returns
+    -------
+    X         : ndarray (n, 3)      – features (temp, rain, sun)
+    y_noisy   : ndarray (n,)        – response with additive Gaussian noise
+    masks     : list[np.ndarray]    – 5 Boolean masks, one per class
+    one_hot   : ndarray (n, 5)      – same information in one-hot form
     """
-    np.random.seed(seed)
-    low, high = -128, 127
-    
-    # sample operands
-    a = np.random.randint(low, high+1, size=n)
-    b = np.random.randint(low, high+1, size=n)
-    
-    # compute true sum and modulo sum
-    true_sum = a + b
-    sum_mod_unsigned = np.mod(true_sum, 256)
-    sum_mod = ((sum_mod_unsigned + 128) % 256) - 128
-    
-    # overflow flag (latent in features)
-    overflow = ((true_sum < low) | (true_sum > high)).astype(int)
-    
-    # add Gaussian noise to sum_mod
-    if noise > 0:
-        # noise interpreted in same units as sum_mod (integer LSBs)
-        sum_mod = sum_mod.astype(float)
-        sum_mod += np.random.normal(0, noise, size=n)
-        # round back to integer and clip to signed 8-bit range
-        sum_mod = np.round(sum_mod).astype(int)
-        sum_mod = np.clip(sum_mod, low, high)
-    
-    # assemble feature matrix X and target y
-    X = np.column_stack([a, b, overflow])
-    y = sum_mod
+    import numpy as np
 
-    # masks 
-    mask_no_overflow = overflow == 0
-    mask_overflow = overflow == 1
-    masks = [mask_no_overflow, mask_overflow]
+    rng   = np.random.default_rng(seed)
+    per_c = [n // 5] * 5                      # target size of each class
+    for k in range(n % 5):                    # distribute the remainder
+        per_c[k] += 1
 
-    print("Mask counts (no overflow, overflow):") if verbose else None
-    print([mask.sum() for mask in masks]) if verbose else None
+    # ------------------------------------------------------------------
+    # 1 regime predicates (same formulas as before)
+    # ------------------------------------------------------------------
+    def predicates(t, r, s):
+        c1 = np.sin(t * np.pi / 30) + np.log(r + 1)       > 1.5
+        c2 = (r / 50) ** 2     + np.cos(s / 7)            > 1.2
+        c3 = np.sin(t / 10)    - (r / 100) ** 1.5         < 0.5
+        c4 = (s / 14) * np.log(t)                         < 0.8
+        return c1, c2, c3, c4
 
-    X = X.astype(float)
-    y = y.astype(float)
+    # ------------------------------------------------------------------
+    # 2 generate samples until every class is full
+    # ------------------------------------------------------------------
+    features, labels = [], []            # temporary storage
+    counts = [0] * 5
 
-    return X, y, masks, masks
+    while any(cnt < tgt for cnt, tgt in zip(counts, per_c)):
+        t   = rng.uniform(5, 35)
+        r   = rng.uniform(0, 200)
+        s   = rng.uniform(0, 14)
+        c1, c2, c3, c4 = predicates(t, r, s)
+
+        # exclusive assignment
+        if   c1 and counts[0] < per_c[0]:
+            label = 0
+        elif c2 and counts[1] < per_c[1]:
+            label = 1
+        elif c3 and counts[2] < per_c[2]:
+            label = 2
+        elif c4 and counts[3] < per_c[3]:
+            label = 3
+        elif counts[4] < per_c[4]:       # fallback ‘other’
+            label = 4
+        else:
+            continue                      # skip, class already full
+
+        features.append((t, r, s))
+        labels.append(label)
+        counts[label] += 1
+
+    X = np.asarray(features)
+    labels = np.asarray(labels)
+
+    # ------------------------------------------------------------------
+    # 3 yield functions
+    # ------------------------------------------------------------------
+    y = np.zeros(n)
+    idx = labels == 0
+    y[idx] = 8 + 2 * np.sin(X[idx, 0] / 5)      + 0.01 * X[idx, 1]
+    idx = labels == 1
+    y[idx] = 5 + 0.02 * X[idx, 1]               + 1.5 * np.cos(X[idx, 2] / 3)
+    idx = labels == 2
+    y[idx] = 3 + 0.5 * (X[idx, 2] / 14) ** 2    - 0.01 * X[idx, 0]
+    idx = labels == 3
+    y[idx] = 4 + 0.02 * X[idx, 2]               + 0.1 * np.log(X[idx, 1] + 1)
+    idx = labels == 4                           # simple baseline
+    y[idx] = 4 + 0.01 * X[idx, 2]
+
+    # ------------------------------------------------------------------
+    # 4 add noise & build masks
+    # ------------------------------------------------------------------
+    y_noisy = y + rng.normal(0, (noise / 100) * y.std(ddof=0), size=n)
+
+    one_hot = np.eye(5, dtype=bool)[labels]
+    masks   = [one_hot[:, k] for k in range(5)]
+
+    if verbose:
+        print("Regime counts (Top/Mid/Dry/Cloud/Other):", counts)
+
+    return X, y_noisy, masks, one_hot
 
 
 def load_synthetic12(n=600, seed=0, noise=0, verbose=False):
