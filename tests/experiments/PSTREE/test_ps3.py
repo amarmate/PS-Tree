@@ -20,10 +20,11 @@ def ps3_test(best_params,
     bcv_rmse = params.pop('bcv_rmse')
     X_tr, y_tr = dataset['X_train'], dataset['y_train']
     X_te, y_te = dataset['X_test'], dataset['y_test']
+    params['X_test'] = X_te
+    params['y_test'] = y_te
 
     reg = PSTreeRegressor(
         **params,
-        test_data = (X_te, y_te),
         random_seed  = seed,
         random_state = seed,
     )

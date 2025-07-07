@@ -817,7 +817,6 @@ class GPRegressor(NormalizationRegressor):
         
         if self.test_data is not None: 
             self.stats.register('te_rmse',  self._stat_rmse_test)
-
             self.stats.register('te_r2',    self._stat_r2_test)
 
         backup_X = X.copy()
