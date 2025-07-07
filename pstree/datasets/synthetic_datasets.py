@@ -383,8 +383,6 @@ def load_synthetic10(n=600, seed=0, noise=0, verbose=False):
     masks = [m1, m2, m3, m4]
     return x, y_noisy, masks, masks
 
-
-
 def load_synthetic11(n=600, *, seed=0, noise=0.0, verbose=False):
     """
     Synthetic crop-yield dataset whose five classes contain (almost) the
