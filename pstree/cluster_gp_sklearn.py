@@ -816,7 +816,6 @@ class GPRegressor(NormalizationRegressor):
         self.stats.register('pop_nodes', self._stat_nodes)
         
         if self.test_data is not None:
-            print('NONONOE')
             self.stats.register('te_rmse',  self._stat_rmse_test)
             self.stats.register('te_r2',    self._stat_r2_test)
 
