@@ -816,7 +816,6 @@ class GPRegressor(NormalizationRegressor):
         self.stats.register('pop_nodes', self._stat_nodes)
         
         if self.test_data is not None: 
-            print("NOTNONE")
             self.stats.register('te_rmse',  self._stat_rmse_test)
             self.stats.register('te_r2',    self._stat_r2_test)
 
@@ -1347,7 +1346,7 @@ class PSTreeRegressor(NormalizationRegressor):
             adaptive_tree=self.adaptive_tree,
             super_object=self,
             decision_tree=decision_tree,
-            # test_data=self.test_data,
+            test_data=self.test_data,
             **self.params,
         )
         self.regr.fit(X, y, category)
