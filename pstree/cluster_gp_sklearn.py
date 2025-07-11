@@ -874,21 +874,21 @@ class GPRegressor(NormalizationRegressor):
     
     def _stat_rmse(self, pop):
         y_pred = self.super_object.predict(self.train_data)
-        return round(np.sqrt(mean_squared_error(self.Y, y_pred)), 2)
+        return round(np.sqrt(mean_squared_error(self.Y, y_pred)), 4)
     
     def _stat_rmse_test(self, pop):
         xte, yte = self.test_data
         y_pred = self.super_object.predict(xte)    
-        return round(np.sqrt(mean_squared_error(yte, y_pred)), 2)
+        return round(np.sqrt(mean_squared_error(yte, y_pred)), 4)
 
     def _stat_r2(self, pop):
         y_pred = self.super_object.predict(self.train_data)
-        return round(r2_score(self.Y, y_pred), 2)
+        return round(r2_score(self.Y, y_pred), 4)
 
     def _stat_r2_test(self, pop):
         xte, yte = self.test_data
         y_pred = self.super_object.predict(xte)
-        return round(r2_score(yte, y_pred), 2)
+        return round(r2_score(yte, y_pred), 4)
 
     def _stat_nodes(self, pop):
         return sum(len(ind) for ind in self.pop)
