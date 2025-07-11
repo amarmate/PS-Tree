@@ -360,6 +360,8 @@ class GPRegressor(NormalizationRegressor):
         self.correlation_elimination = correlation_elimination
         self.decision_tree = decision_tree
         self.test_data = test_data
+        
+        print('self.test_data', self.test_data)
         self.t_start = time.time()
 
     def get_predicted_list(self, pop):
